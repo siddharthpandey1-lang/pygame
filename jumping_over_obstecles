@@ -1,0 +1,100 @@
+import pygame
+import random
+import sys
+
+# Initialize pygame
+pygame.init()
+
+# Screen settings
+WIDTH, HEIGHT = 800, 400
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Jumping Over Obstacles")
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+# Character settings
+char_width, char_height = 50, 50
+char_x = 100
+char_y = HEIGHT - char_height - 50
+char_vel_y = 0
+jumping = False
+gravity = 1
+
+# Obstacle settings
+obstacle_width, obstacle_height = 40, 60
+obstacle_vel = 7
+obstacles = []
+
+# Clock
+clock = pygame.time.Clock()
+FPS = 60
+
+def spawn_obstacle():
+    x = WIDTH
+    y = HEIGHT - obstacle_height - 50
+    obstacles.append(pygame.Rect(x, y, obstacle_width, obstacle_height))
+
+def reset_game():
+    global obstacles, char_y, char_vel_y, jumping
+    obstacles = []
+    char_y = HEIGHT - char_height - 50
+    char_vel_y = 0
+    jumping = False
+
+# Main game loop
+spawn_timer = 0
+running = True
+while running:
+    clock.tick(FPS)
+    screen.fill(WHITE)
+
+    # Event handling
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Jump logic
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_SPACE] and not jumping:
+        char_vel_y = -18
+        jumping = True
+
+    char_y += char_vel_y
+    char_vel_y += gravity
+
+    if char_y >= HEIGHT - char_height - 50:
+        char_y = HEIGHT - char_height - 50
+        jumping = False
+
+    # Obstacle logic
+    spawn_timer += 1
+    if spawn_timer > 90:
+        spawn_obstacle()
+        spawn_timer = 0
+
+    for obs in obstacles[:]:
+        obs.x -= obstacle_vel
+        if obs.right < 0:
+            obstacles.remove(obs)
+
+    # Collision detection
+    char_rect = pygame.Rect(char_x, char_y, char_width, char_height)
+    for obs in obstacles:
+        if char_rect.colliderect(obs):
+            reset_game()
+            break
+
+    # Draw ground
+    pygame.draw.rect(screen, BLACK, (0, HEIGHT - 50, WIDTH, 50))
+    # Draw character
+    pygame.draw.rect(screen, (0, 128, 255), char_rect)
+    # Draw obstacles
+    for obs in obstacles:
+        pygame.draw.rect(screen, (255, 0, 0), obs)
+
+    pygame.display.flip()
+
+pygame.quit()
+sys.exit()
