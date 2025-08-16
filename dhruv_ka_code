@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Complex Shopping Website</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; }
+        header { background: #222; color: #fff; padding: 1em 2em; display: flex; justify-content: space-between; align-items: center; }
+        nav a { color: #fff; margin: 0 1em; text-decoration: none; }
+        .container { max-width: 1200px; margin: 2em auto; background: #fff; padding: 2em; border-radius: 8px; }
+        .products { display: flex; flex-wrap: wrap; gap: 2em; }
+        .product { border: 1px solid #ddd; border-radius: 8px; padding: 1em; width: 250px; background: #fafafa; display: flex; flex-direction: column; }
+        .product img { width: 100%; height: 180px; object-fit: cover; border-radius: 4px; }
+        .product h3 { margin: 0.5em 0; }
+        .product .price { color: #27ae60; font-weight: bold; }
+        .product button { margin-top: auto; background: #222; color: #fff; border: none; padding: 0.5em; border-radius: 4px; cursor: pointer; }
+        .cart { position: fixed; top: 1em; right: 1em; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1em; width: 350px; max-height: 80vh; overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; z-index: 1000; }
+        .cart.active { display: block; }
+        .cart h2 { margin-top: 0; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; }
+        .cart-item img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+        .cart-item-details { flex: 1; margin-left: 1em; }
+        .cart-total { font-weight: bold; margin-top: 1em; }
+        .checkout-btn { background: #27ae60; color: #fff; border: none; padding: 0.7em 1.5em; border-radius: 4px; cursor: pointer; margin-top: 1em; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.3); z-index: 999; }
+        .overlay.active { display: block; }
+        @media (max-width: 800px) {
+            .products { flex-direction: column; align-items: center; }
+            .cart { width: 90vw; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>ShopComplex</h1>
+            <nav>
+                <a href="#">Home</a>
+                <a href="#">Products</a>
+                <a href="#">Deals</a>
+                <a href="#">Contact</a>
+            </nav>
+        </div>
+        <button id="cartBtn" style="background:none;border:none;color:#fff;font-size:1.2em;cursor:pointer;">
+            🛒 Cart (<span id="cartCount">0</span>)
+        </button>
+    </header>
+    <div class="container">
+        <h2>Featured Products</h2>
+        <div class="products" id="products"></div>
+    </div>
+    <div class="overlay" id="overlay"></div>
+    <div class="cart" id="cart">
+        <h2>Your Cart</h2>
+        <div id="cartItems"></div>
+        <div class="cart-total">Total: $<span id="cartTotal">0.00</span></div>
+        <button class="checkout-btn" onclick="checkout()">Checkout</button>
+    </div>
+    <script>
+        // Sample product data
+        const products = [
+            {id:1, name:"Wireless Headphones", price:99.99, img:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80", desc:"High quality wireless headphones with noise cancellation."},
+            {id:2, name:"Smart Watch", price:149.99, img:"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80", desc:"Track your fitness and notifications on the go."},
+            {id:3, name:"Gaming Mouse", price:59.99, img:"https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80", desc:"Precision gaming mouse with customizable buttons."},
+            {id:4, name:"Bluetooth Speaker", price:79.99, img:"https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80", desc:"Portable speaker with deep bass and long battery life."},
+            {id:5, name:"4K Monitor", price:299.99, img:"https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=400&q=80", desc:"Ultra HD monitor for stunning visuals."},
+            {id:6, name:"Mechanical Keyboard", price:89.99, img:"https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80", desc:"Tactile mechanical keyboard with RGB lighting."},
+            {id:7, name:"VR Headset", price:399.99, img:"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80", desc:"Experience immersive virtual reality worlds."},
+            {id:8, name:"Smartphone", price:699.99, img:"https://images.unsplash.com/photo-1512499617640-c2f999098c67?auto=format&fit=crop&w=400&q=80", desc:"Latest generation smartphone with advanced features."}
+        ];
+
+        // Render products
+        const productsDiv = document.getElementById('products');
+        products.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'product';
+            div.innerHTML = `
+                <img src="${p.img}" alt="${p.name}">
+                <h3>${p.name}</h3>
+                <div class="price">$${p.price.toFixed(2)}</div>
+                <p>${p.desc}</p>
+                <button onclick="addToCart(${p.id})">Add to Cart</button>
+            `;
+            productsDiv.appendChild(div);
+        });
+
+        // Cart logic
+        let cart = JSON.parse(localStorage.getItem('cart') || '{}');
+        function saveCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+        }
+        function updateCartCount() {
+            let count = Object.values(cart).reduce((a, b) => a + b.qty, 0);
+            document.getElementById('cartCount').textContent = count;
+        }
+        function addToCart(id) {
+            if (!cart[id]) cart[id] = {qty:0, ...products.find(p=>p.id===id)};
+            cart[id].qty++;
+            saveCart();
+            updateCartCount();
+            renderCart();
+        }
+        function removeFromCart(id) {
+            if (cart[id]) {
+                cart[id].qty--;
+                if (cart[id].qty <= 0) delete cart[id];
+                saveCart();
+                updateCartCount();
+                renderCart();
+            }
+        }
+        function renderCart() {
+            const cartItemsDiv = document.getElementById('cartItems');
+            cartItemsDiv.innerHTML = '';
+            let total = 0;
+            Object.values(cart).forEach(item => {
+                total += item.price * item.qty;
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <img src="${item.img}" alt="${item.name}">
+                    <div class="cart-item-details">
+                        <strong>${item.name}</strong><br>
+                        $${item.price.toFixed(2)} x ${item.qty}
+                    </div>
+                    <button onclick="removeFromCart(${item.id})" style="background:#e74c3c;color:#fff;border:none;padding:0.3em 0.7em;border-radius:4px;cursor:pointer;">-</button>
+                `;
+                cartItemsDiv.appendChild(div);
+            });
+            document.getElementById('cartTotal').textContent = total.toFixed(2);
+        }
+        function checkout() {
+            if (Object.keys(cart).length === 0) {
+                alert("Your cart is empty!");
+                return;
+            }
+            alert("Thank you for your purchase!");
+            cart = {};
+            saveCart();
+            updateCartCount();
+            renderCart();
+            closeCart();
+        }
+        // Cart modal logic
+        const cartBtn = document.getElementById('cartBtn');
+        const cartDiv = document.getElementById('cart');
+        const overlay = document.getElementById('overlay');
+        cartBtn.onclick = () => {
+            cartDiv.classList.add('active');
+            overlay.classList.add('active');
+            renderCart();
+        };
+        overlay.onclick = closeCart;
+        function closeCart() {
+            cartDiv.classList.remove('active');
+            overlay.classList.remove('active');
+        }
+        // Initial load
+        updateCartCount();
+        renderCart();
+    </script>
+</body>
+</html>
